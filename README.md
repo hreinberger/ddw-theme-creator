@@ -19,7 +19,7 @@ The project still uses the Next.js Pages Router. Theme generation remains client
 
 ## Requirements
 
-- Node.js `>= 20.9.0`
+- Node.js `24.14.0` (current LTS)
 - npm
 
 ## Local development
@@ -58,7 +58,7 @@ Recommended settings:
 - Install command: `npm install`
 - Build command: `npm run build`
 - Output setting: default Next.js output
-- Node.js version: `20.x` or newer
+- Node.js version: `24.x` (or respect `package.json` / `.nvmrc`)
 
 ## Known limitations
 
