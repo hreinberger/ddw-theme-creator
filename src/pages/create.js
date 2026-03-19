@@ -3,52 +3,55 @@ import { IoIosImage, IoIosImages } from "react-icons/io"
 import { GoArrowRight } from "react-icons/go"
 import Link from "next/link"
 import { useRouter } from "next/router"
+import { useEffect } from "react"
 import CreateThemeFromImageSet from "../components/from-image-set"
 import CreateThemeFromSingleImage from "../components/from-single-image"
 import ConvertHeicToDdw from "../components/heic-to-ddw"
-import { useEffect } from "react"
 import AppStore from "../stores/app"
 
 function Create() {
     const router = useRouter()
-    const query = router.query
+    const option = Array.isArray(router.query.option) ? router.query.option[0] : router.query.option
 
     useEffect(() => {
         AppStore.loading = false
-    })
+    }, [])
 
     return (
         <div className="create fade-in">
             <div className="content-header">
-                <Link href={"/"}>
-                    <div><GoArrowLeft className="content-header-back-button hover-fade" /></div>
+                <Link aria-label="Back to home" className="content-header-back-link" href="/">
+                    <GoArrowLeft className="content-header-back-button hover-fade" />
                 </Link>
                 {
-                    query.option === "1" ?
+                    option === "1" ?
                         <div className="row">
                             <IoIosImages className="content-header-icon" />
                             <GoArrowRight className="content-header-icon" />
-                            <img className="content-header-image-small" src="/icon.png" /><div className="content-header-text">Create theme from set of images</div>
+                            <img alt="" className="content-header-image-small" src="/icon.png" />
+                            <div className="content-header-text">Create theme from set of images</div>
                         </div> :
-                        query.option === "2" ?
+                        option === "2" ?
                             <div className="row">
                                 <IoIosImage className="content-header-icon" />
                                 <GoArrowRight className="content-header-icon" />
-                                <img className="content-header-image-small" src="/icon.png" /><div className="content-header-text">Create theme from single image</div>
+                                <img alt="" className="content-header-image-small" src="/icon.png" />
+                                <div className="content-header-text">Create theme from single image</div>
                             </div> :
-                            query.option === "3" ?
+                            option === "3" ?
                                 <div className="row">
-                                    <img className="content-header-image-big" src="/heicfile.png" />
+                                    <img alt="" className="content-header-image-big" src="/heicfile.png" />
                                     <GoArrowRight className="content-header-icon" />
-                                    <img className="content-header-image-small" src="/icon.png" /><div className="content-header-text">Convert .heic file to .ddw file</div>
+                                    <img alt="" className="content-header-image-small" src="/icon.png" />
+                                    <div className="content-header-text">Convert .heic file to .ddw file</div>
                                 </div> :
                                 null
                 }
             </div>
             {
-                query.option === "1" ? <CreateThemeFromImageSet /> :
-                    query.option === "2" ? <CreateThemeFromSingleImage /> :
-                        query.option === "3" ? <ConvertHeicToDdw /> :
+                option === "1" ? <CreateThemeFromImageSet /> :
+                    option === "2" ? <CreateThemeFromSingleImage /> :
+                        option === "3" ? <ConvertHeicToDdw /> :
                             null
             }
         </div>

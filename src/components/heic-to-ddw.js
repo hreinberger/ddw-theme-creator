@@ -1,284 +1,194 @@
 import { useState } from "react"
 import { useRouter } from "next/router"
 import { FiSunrise, FiSun, FiSunset, FiMoon } from "react-icons/fi"
+import JSZip from "jszip"
 import AppStore from "../stores/app"
 import ThemeStore from "../stores/theme"
+import { createPreviewItem } from "../utils/file-items"
+import { isValidThemeName } from "../utils/theme"
 import HeicDropzone from "./heic-dropzone"
-import JSZip from "jszip"
-import { ReactSortable } from "react-sortablejs"
+import SortableThumbnailList from "./sortable-thumbnail-list"
 
 const ConvertHeicToDdw = () => {
     const router = useRouter()
-    const heic2any = require("heic2any")
 
-    const [imageData, setImageData] = useState([])
     const [extractedThumbnails, setExtractedThumbnails] = useState([])
     const [sunriseThumbnails, setSunriseThumbnails] = useState([])
     const [dayThumbnails, setDayThumbnails] = useState([])
     const [sunsetThumbnails, setSunsetThumbnails] = useState([])
     const [nightThumbnails, setNightThumbnails] = useState([])
+    const [themeName, setThemeName] = useState("")
     const [errorFlag, setErrorFlag] = useState(" hidden")
     const [errorText, setErrorText] = useState("")
-    const [hoverFlag, setHoverFlag] = useState(" hover-fade-no-pointer")
     const [heicErrorFlag, setHeicErrorFlag] = useState(" hidden")
-    const [dragFlag, setDragFlag] = useState("")
 
-    const extractImages = file => {
+    const extractImages = async file => {
         AppStore.loadingMessage = "Extracting images..."
         AppStore.loading = true
-        heic2any({
-            blob: file,
-            toType: "image/jpeg",
-            multiple: true
-        }).then(images => {
-            AppStore.loading = false
-            setHeicErrorFlag(" hidden")
-            let files = images.map(file => Object.assign(file, {
-                preview: URL.createObjectURL(file)
-            }))
-            setImageData(imageData => imageData.concat(files))
-            setExtractedThumbnails(extractedThumbnails => extractedThumbnails.concat(files))
-        }).catch(() => {
-            AppStore.loading = false
-            setHeicErrorFlag(" visible")
-        })
-    }
 
-    const createTheme = event => {
-        event.preventDefault()
-        let themeName = document.forms["form"]["theme-name"].value
-        if (dayThumbnails.length === 0 || nightThumbnails.length === 0) {
-            setErrorFlag(" visible")
-            setErrorText("Please assign at least one day and one night image.")
-        } else if (themeName.length < 1) {
-            setErrorFlag(" visible")
-            setErrorText("Please enter a theme name.")
-        } else if (!themeName.match("^[a-zA-Z0-9_]*$")) {
-            setErrorFlag(" visible")
-            setErrorText("Please enter letters, numbers, or underscores only.")
-        } else {
-            setErrorFlag(" hidden")
-            setErrorText("")
-            let count = 1
-            let sunriseImageIndices = [], dayImageIndices = [], sunsetImageIndices = [], nightImageIndices = []
-            let zip = new JSZip()
-            if (sunriseThumbnails.length === 0) {
-                sunriseImageIndices.push(count)
-                let data = imageData.find(data => dayThumbnails[0].preview === data.preview)
-                let file = new File([data], themeName + "_" + count++ + ".jpg", { type: "image/jpeg" })
-                zip.file(file.name, file)
-            } else {
-                sunriseThumbnails.forEach(thumbnail => {
-                    sunriseImageIndices.push(count)
-                    let data = imageData.find(data => thumbnail.preview === data.preview)
-                    let file = new File([data], themeName + "_" + count++ + ".jpg", { type: "image/jpeg" })
-                    zip.file(file.name, file)
-                })
-            }
-            dayThumbnails.forEach(thumbnail => {
-                dayImageIndices.push(count)
-                let data = imageData.find(data => thumbnail.preview === data.preview)
-                let file = new File([data], themeName + "_" + count++ + ".jpg", { type: "image/jpeg" })
-                zip.file(file.name, file)
+        try {
+            const heic2anyModule = await import("heic2any")
+            const convertHeic = heic2anyModule.default || heic2anyModule
+            const images = await convertHeic({
+                blob: file,
+                toType: "image/jpeg",
+                multiple: true
             })
-            if (sunsetThumbnails.length === 0) {
-                sunsetImageIndices.push(count)
-                let data = imageData.find(data => nightThumbnails[0].preview === data.preview)
-                let file = new File([data], themeName + "_" + count++ + ".jpg", { type: "image/jpeg" })
-                zip.file(file.name, file)
-            } else {
-                sunsetThumbnails.forEach(thumbnail => {
-                    sunsetImageIndices.push(count)
-                    let data = imageData.find(data => thumbnail.preview === data.preview)
-                    let file = new File([data], themeName + "_" + count++ + ".jpg", { type: "image/jpeg" })
-                    zip.file(file.name, file)
-                })
-            }
-            nightThumbnails.forEach(thumbnail => {
-                nightImageIndices.push(count)
-                let data = imageData.find(data => thumbnail.preview === data.preview)
-                let file = new File([data], themeName + "_" + count++ + ".jpg", { type: "image/jpeg" })
-                zip.file(file.name, file)
+
+            const imageBlobs = Array.isArray(images) ? images : [images]
+            const baseName = file.name.replace(/\.[^/.]+$/, "") || "converted"
+            const files = imageBlobs.map((image, index) => {
+                const convertedFile = image instanceof File
+                    ? image
+                    : new File([image], `${baseName}_${index + 1}.jpg`, { type: "image/jpeg" })
+
+                return createPreviewItem(convertedFile)
             })
-            let json = JSON.stringify({
-                imageFilename: themeName + "_*.jpg",
-                imageCredits: "Created by the .ddw Theme Creator",
-                sunriseImageList: sunriseImageIndices,
-                dayImageList: dayImageIndices,
-                sunsetImageList: sunsetImageIndices,
-                nightImageList: nightImageIndices
-            })
-            zip.file(themeName + ".json", json)
-            AppStore.loadingMessage = "Creating theme..."
-            AppStore.loading = true
-            zip.generateAsync({ type: "blob" }).then(result => {
-                ThemeStore.themeData = result
-                ThemeStore.themeName = themeName
-                router.push("/result", "/")
-            })
+
+            setHeicErrorFlag(" hidden")
+            setExtractedThumbnails(current => current.concat(files))
+        } catch (error) {
+            console.error(error)
+            setHeicErrorFlag(" visible")
+        } finally {
+            AppStore.loading = false
         }
     }
 
+    const createTheme = async event => {
+        event.preventDefault()
+        const trimmedThemeName = themeName.trim()
+
+        if (dayThumbnails.length === 0 || nightThumbnails.length === 0) {
+            setErrorFlag(" visible")
+            setErrorText("Please assign at least one day and one night image.")
+            return
+        }
+
+        if (trimmedThemeName.length < 1) {
+            setErrorFlag(" visible")
+            setErrorText("Please enter a theme name.")
+            return
+        }
+
+        if (!isValidThemeName(trimmedThemeName)) {
+            setErrorFlag(" visible")
+            setErrorText("Please enter letters, numbers, or underscores only.")
+            return
+        }
+
+        setErrorFlag(" hidden")
+        setErrorText("")
+
+        let count = 1
+        const sunriseImageIndices = []
+        const dayImageIndices = []
+        const sunsetImageIndices = []
+        const nightImageIndices = []
+        const zip = new JSZip()
+
+        if (sunriseThumbnails.length === 0) {
+            sunriseImageIndices.push(count)
+            zip.file(`${trimmedThemeName}_${count++}.jpg`, dayThumbnails[0].file)
+        } else {
+            sunriseThumbnails.forEach(thumbnail => {
+                sunriseImageIndices.push(count)
+                zip.file(`${trimmedThemeName}_${count++}.jpg`, thumbnail.file)
+            })
+        }
+
+        dayThumbnails.forEach(thumbnail => {
+            dayImageIndices.push(count)
+            zip.file(`${trimmedThemeName}_${count++}.jpg`, thumbnail.file)
+        })
+
+        if (sunsetThumbnails.length === 0) {
+            sunsetImageIndices.push(count)
+            zip.file(`${trimmedThemeName}_${count++}.jpg`, nightThumbnails[0].file)
+        } else {
+            sunsetThumbnails.forEach(thumbnail => {
+                sunsetImageIndices.push(count)
+                zip.file(`${trimmedThemeName}_${count++}.jpg`, thumbnail.file)
+            })
+        }
+
+        nightThumbnails.forEach(thumbnail => {
+            nightImageIndices.push(count)
+            zip.file(`${trimmedThemeName}_${count++}.jpg`, thumbnail.file)
+        })
+
+        zip.file(`${trimmedThemeName}.json`, JSON.stringify({
+            imageFilename: `${trimmedThemeName}_*.jpg`,
+            imageCredits: "Created by the .ddw Theme Creator",
+            sunriseImageList: sunriseImageIndices,
+            dayImageList: dayImageIndices,
+            sunsetImageList: sunsetImageIndices,
+            nightImageList: nightImageIndices
+        }))
+
+        AppStore.loadingMessage = "Creating theme..."
+        AppStore.loading = true
+
+        const result = await zip.generateAsync({ type: "blob" })
+
+        ThemeStore.themeData = result
+        ThemeStore.themeName = trimmedThemeName
+
+        void router.push("/result")
+    }
+
     return (
-        <form name="form" className="content" onSubmit={createTheme}>
+        <form className="content" onSubmit={createTheme}>
             <div className="content-block">
                 Drag an .heic file into the dropzone, or click the "+" button. <br />
                 Then drag the extracted images into their proper categories. <br />
                 Not all images must be included, but there must be at least one day image and one night image.
             </div>
-            {imageData.length > 0 ? null : <HeicDropzone onDrop={file => file != null ? extractImages(file) : null} />}
+            {extractedThumbnails.length > 0 ? null : <HeicDropzone onDrop={file => {
+                if (file != null) {
+                    void extractImages(file)
+                }
+            }} />}
             <div className={"content-block" + heicErrorFlag}>
                 <span className="error-text">Error: There was a problem with the .heic file. Try again or select another file.</span>
             </div>
-            <div className="thumbnail-container minimize">
-                <ReactSortable
-                    list={extractedThumbnails}
-                    setList={setExtractedThumbnails}
-                    group="images"
-                    onChoose={() => {
-                        setHoverFlag("")
-                        setDragFlag(" dragging")
-                    }}
-                    onUnchoose={() => {
-                        setHoverFlag(" hover-fade-no-pointer")
-                        setDragFlag("")
-                    }}
-                    ghostClass="thumbnail-placeholder"
-                    forceFallback={true}
-                    emptyInsertThreshold={75}
-                >
-                    {extractedThumbnails.map(file => (
-                        <div className={"thumbnail draggable" + hoverFlag + dragFlag} key={file.name}>
-                            <div className="thumbnail-inner">
-                                <img src={file.preview} className="thumbnail-image" />
-                            </div>
-                        </div>
-                    ))}
-                </ReactSortable>
-            </div>
+            <SortableThumbnailList
+                containerClassName="thumbnail-container minimize"
+                emptyInsertThreshold={75}
+                items={extractedThumbnails}
+                setItems={setExtractedThumbnails}
+            />
             <div className="category-grid">
                 <div className="category">
                     <div className="category-header-text"><FiSunrise />&nbsp;Sunrise images:</div>
-                    <div className="thumbnail-container">
-                        <ReactSortable
-                            list={sunriseThumbnails}
-                            setList={setSunriseThumbnails}
-                            group="images"
-                            onChoose={() => {
-                                setHoverFlag("")
-                                setDragFlag(" dragging")
-                            }}
-                            onUnchoose={() => {
-                                setHoverFlag(" hover-fade-no-pointer")
-                                setDragFlag("")
-                            }}
-                            ghostClass="thumbnail-placeholder"
-                            forceFallback={true}
-                            emptyInsertThreshold={75}
-                        >
-                            {sunriseThumbnails.map(file => (
-                                <div className={"thumbnail draggable" + hoverFlag + dragFlag} key={file.name}>
-                                    <div className="thumbnail-inner">
-                                        <img src={file.preview} className="thumbnail-image" />
-                                    </div>
-                                </div>
-                            ))}
-                        </ReactSortable>
-                    </div>
+                    <SortableThumbnailList emptyInsertThreshold={75} items={sunriseThumbnails} setItems={setSunriseThumbnails} />
                 </div>
                 <div className="category">
                     <div className="category-header-text"><FiSun />&nbsp;Day images:</div>
-                    <div className="thumbnail-container">
-                        <ReactSortable
-                            list={dayThumbnails}
-                            setList={setDayThumbnails}
-                            group="images"
-                            onChoose={() => {
-                                setHoverFlag("")
-                                setDragFlag(" dragging")
-                            }}
-                            onUnchoose={() => {
-                                setHoverFlag(" hover-fade-no-pointer")
-                                setDragFlag("")
-                            }}
-                            ghostClass="thumbnail-placeholder"
-                            forceFallback={true}
-                            emptyInsertThreshold={75}
-                        >
-                            {dayThumbnails.map(file => (
-                                <div className={"thumbnail draggable" + hoverFlag + dragFlag} key={file.name}>
-                                    <div className="thumbnail-inner">
-                                        <img src={file.preview} className="thumbnail-image" />
-                                    </div>
-                                </div>
-                            ))}
-                        </ReactSortable>
-                    </div>
+                    <SortableThumbnailList emptyInsertThreshold={75} items={dayThumbnails} setItems={setDayThumbnails} />
                 </div>
                 <div className="category">
                     <div className="category-header-text"><FiSunset />&nbsp;Sunset images:</div>
-                    <div className="thumbnail-container">
-                        <ReactSortable
-                            list={sunsetThumbnails}
-                            setList={setSunsetThumbnails}
-                            group="images"
-                            onChoose={() => {
-                                setHoverFlag("")
-                                setDragFlag(" dragging")
-                            }}
-                            onUnchoose={() => {
-                                setHoverFlag(" hover-fade-no-pointer")
-                                setDragFlag("")
-                            }}
-                            ghostClass="thumbnail-placeholder"
-                            forceFallback={true}
-                            emptyInsertThreshold={75}
-                        >
-                            {sunsetThumbnails.map(file => (
-                                <div className={"thumbnail draggable" + hoverFlag + dragFlag} key={file.name}>
-                                    <div className="thumbnail-inner">
-                                        <img src={file.preview} className="thumbnail-image" />
-                                    </div>
-                                </div>
-                            ))}
-                        </ReactSortable>
-                    </div>
+                    <SortableThumbnailList emptyInsertThreshold={75} items={sunsetThumbnails} setItems={setSunsetThumbnails} />
                 </div>
                 <div className="category">
                     <div className="category-header-text"><FiMoon />&nbsp;Night images:</div>
-                    <div className="thumbnail-container">
-                        <ReactSortable
-                            list={nightThumbnails}
-                            setList={setNightThumbnails}
-                            group="images"
-                            onChoose={() => {
-                                setHoverFlag("")
-                                setDragFlag(" dragging")
-                            }}
-                            onUnchoose={() => {
-                                setHoverFlag(" hover-fade-no-pointer")
-                                setDragFlag("")
-                            }}
-                            ghostClass="thumbnail-placeholder"
-                            forceFallback={true}
-                            emptyInsertThreshold={75}
-                        >
-                            {nightThumbnails.map(file => (
-                                <div className={"thumbnail draggable" + hoverFlag + dragFlag} key={file.name}>
-                                    <div className="thumbnail-inner">
-                                        <img src={file.preview} className="thumbnail-image" />
-                                    </div>
-                                </div>
-                            ))}
-                        </ReactSortable>
-                    </div>
+                    <SortableThumbnailList emptyInsertThreshold={75} items={nightThumbnails} setItems={setNightThumbnails} />
                 </div>
             </div>
             <div className="content-block">
-                <input type="text" id="theme-name" name="theme-name" className="content-text-field" placeholder="Name of theme" />
+                <input
+                    className="content-text-field"
+                    id="theme-name"
+                    name="theme-name"
+                    onChange={({ target }) => setThemeName(target.value)}
+                    placeholder="Name of theme"
+                    type="text"
+                    value={themeName}
+                />
             </div>
             <div className="content-block row">
-                <input type="submit" value="Create .ddw file" className="content-button" />
+                <input className="content-button" type="submit" value="Create .ddw file" />
                 <span className={"error-text" + errorFlag}>Error: {errorText}</span>
             </div>
             <div className="spacer" />

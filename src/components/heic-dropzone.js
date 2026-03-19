@@ -3,7 +3,12 @@ import { useDropzone } from "react-dropzone"
 import { IoIosCheckmarkCircle } from "react-icons/io"
 import { MdCancel, MdAdd } from "react-icons/md"
 
-const HeicDropzone = props => {
+const HEIC_ACCEPT = {
+    "image/heic": [".heic"],
+    "image/heif": [".heif"]
+}
+
+const HeicDropzone = ({ onDrop }) => {
     const baseStyle = {
         flex: 1,
         display: "flex",
@@ -40,9 +45,9 @@ const HeicDropzone = props => {
         isDragAccept,
         isDragReject
     } = useDropzone({
-        accept: ".heic",
-        onDrop: (acceptedFiles) => {
-            props.onDrop(acceptedFiles[0])
+        accept: HEIC_ACCEPT,
+        onDrop: acceptedFiles => {
+            onDrop(acceptedFiles[0] || null)
         }
     })
 

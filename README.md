@@ -1,20 +1,71 @@
-# ddw-theme-creator v0.2.2
-WinDynamicDesktop .ddw theme creator
+# ddw-theme-creator
 
-[Click to use!](https://ddw-theme-creator.vercel.app/)
+Create WinDynamicDesktop `.ddw` theme archives directly in the browser.
 
-#### Features
+The app supports three flows:
 
-* Create .ddw file from a set of images
-* Create .ddw file from a single image by modifying brightness
-* Convert .heic file to .ddw file
+- Create a `.ddw` file from a set of images
+- Create a `.ddw` file from a single image by generating brightness variants
+- Convert a `.heic` file into a `.ddw` file
 
-#### Known bugs
+## Stack
 
-* Dragging an image between two categories sometimes triggers an oscillating effect between the categories
-* Dragging an image into a category is not immediately acknowledged when entering from the right side of the category
-* When converting an .heic file and dragging the file over the upload dropzone, the file is erroneously marked as not accepted, but it will still be accepted
+- Next.js 16
+- React 19
+- MobX 6
+- Browser-side ZIP generation with `jszip`
 
-#### Links
+The project still uses the Next.js Pages Router. Theme generation remains client-side so it can be deployed on Vercel without any custom backend.
 
-* [WinDynamicDesktop](https://github.com/t1m0thyj/WinDynamicDesktop)
+## Requirements
+
+- Node.js `24.14.0` (current LTS)
+- npm
+
+## Local development
+
+Install dependencies:
+
+```bash
+npm install
+```
+
+Start the development server:
+
+```bash
+npm run dev
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Run the production server locally:
+
+```bash
+npm run start
+```
+
+## Deploying to Vercel
+
+This repository is ready for a standard Vercel deployment.
+
+Recommended settings:
+
+- Framework preset: `Next.js`
+- Install command: `npm install`
+- Build command: `npm run build`
+- Output setting: default Next.js output
+- Node.js version: `24.x` (or respect `package.json` / `.nvmrc`)
+
+## Known limitations
+
+- Dragging images between categories still depends on browser drag-and-drop behavior and should be smoke-tested in a real browser after deployment.
+- HEIC conversion depends on client-side browser support and uploaded file quality; test with representative files before production rollout.
+
+## Links
+
+- [Live site](https://ddw-theme-creator.vercel.app/)
+- [WinDynamicDesktop](https://github.com/t1m0thyj/WinDynamicDesktop)

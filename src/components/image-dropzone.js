@@ -2,8 +2,13 @@ import { useMemo } from "react"
 import { useDropzone } from "react-dropzone"
 import { IoIosCheckmarkCircle } from "react-icons/io"
 import { MdCancel, MdAdd } from "react-icons/md"
+import { createPreviewItems } from "../utils/file-items"
 
-const ImageDropzone = props => {
+const IMAGE_ACCEPT = {
+    "image/*": [".bmp", ".gif", ".jpeg", ".jpg", ".png", ".tif", ".tiff"]
+}
+
+const ImageDropzone = ({ multiple = false, onDrop }) => {
     const baseStyle = {
         flex: 1,
         display: "flex",
@@ -40,12 +45,10 @@ const ImageDropzone = props => {
         isDragAccept,
         isDragReject
     } = useDropzone({
-        accept: "image/bmp, image/gif, image/jpeg, image/png, image/tiff",
-        multiple: props.multiple ? true : false,
-        onDrop: (acceptedFiles) => {
-            props.onDrop(acceptedFiles.map(file => Object.assign(file, {
-                preview: URL.createObjectURL(file)
-            })))
+        accept: IMAGE_ACCEPT,
+        multiple,
+        onDrop: acceptedFiles => {
+            onDrop(createPreviewItems(acceptedFiles))
         }
     })
 
