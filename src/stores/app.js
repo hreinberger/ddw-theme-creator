@@ -1,8 +1,12 @@
-import { observable } from "mobx"
+import { makeAutoObservable } from "mobx"
 
 class App {
-    @observable loading = false
-    @observable loadingMessage = ""
+    loading = false
+    loadingMessage = ""
+
+    constructor() {
+        makeAutoObservable(this)
+    }
 }
 
 export default new App()
